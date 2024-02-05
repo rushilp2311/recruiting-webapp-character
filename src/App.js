@@ -1,66 +1,72 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import "./App.css";
-import { ATTRIBUTE_LIST, CLASS_LIST, SKILL_LIST } from "./consts.js";
+import { CLASS_LIST, SKILL_LIST } from "./consts.js";
+import AttributeSection from "./components/AttributeSection.jsx";
+import AppContext from "./context/AppContext.jsx";
 
-const BASE_ATTRIBUTE_VALUE = 10;
+const MINIMUM_CLASS_REQUIREMENTS = {
+  barbarian: {
+    strength: 14,
+    charisma: 9,
+    constitution: 9,
+    dexterity: 9,
+    intelligence: 9,
+    wisdom: 9,
+  },
+  wizard: {
+    strength: 9,
+    charisma: 9,
+    constitution: 9,
+    dexterity: 9,
+    intelligence: 14,
+    wisdom: 9,
+  },
+  bard: {
+    strength: 9,
+    charisma: 9,
+    constitution: 9,
+    dexterity: 9,
+    intelligence: 14,
+    wisdom: 9,
+  },
+};
 
 function App() {
-  const [attributes, setAttributes] = useState({
-    strength: { value: 10, modifier: 0 },
-    dexterity: { value: 10, modifier: 0 },
-    constitution: { value: 10, modifier: 0 },
-    intelligence: { value: 10, modifier: 0 },
-    wisdom: { value: 10, modifier: 0 },
-    charisma: { value: 10, modifier: 0 },
-  });
+  const { attributes, totalSkillsPoints, skills } = useContext(AppContext);
 
   const [showClassInfo, setShowClassInfo] = useState({
     value: false,
     type: undefined,
   });
 
-  const handleAttributeIncrement = (attribute) => {
-    const currentAttribute = attributes[attribute];
+  const isMinimumRequirementForClassReached = (attributeRequirements) => {
+    const {
+      strength,
+      charisma,
+      constitution,
+      dexterity,
+      intelligence,
+      wisdom,
+    } = attributes;
 
-    const updatedValue = currentAttribute.value + 1;
-
-    const updatedModifier =
-      (updatedValue - BASE_ATTRIBUTE_VALUE) % 2 === 0
-        ? currentAttribute.modifier + 1
-        : currentAttribute.modifier;
-
-    setAttributes((prev) => ({
-      ...prev,
-      [attribute]: { value: updatedValue, modifier: updatedModifier },
-    }));
+    return (
+      strength.value >= attributeRequirements.strength &&
+      charisma.value >= attributeRequirements.charisma &&
+      constitution.value >= attributeRequirements.constitution &&
+      dexterity.value >= attributeRequirements.dexterity &&
+      intelligence.value >= attributeRequirements.intelligence &&
+      wisdom.value >= attributeRequirements.wisdom
+    );
   };
 
-  const handleAttributeDecrement = (attribute) => {
-    const currentAttribute = attributes[attribute];
-
-    const updatedValue = currentAttribute.value - 1;
-
-    const updatedModifier =
-      (updatedValue - BASE_ATTRIBUTE_VALUE) % 2 === 0
-        ? currentAttribute.modifier - 1
-        : currentAttribute.modifier;
-
-    setAttributes((prev) => ({
-      ...prev,
-      [attribute]: { value: updatedValue, modifier: updatedModifier },
-    }));
-  };
-
-  const isMinimunRequirementForClassReached = useMemo(() => {
-    const barbarianClassMinimumRequirement = true;
-    const wizardClassMinimumRequirement = true;
-    const bardClassMinimumRequirement = true;
-
-    return {
-      barbarian: barbarianClassMinimumRequirement,
-      wizard: wizardClassMinimumRequirement,
-      bard: bardClassMinimumRequirement,
-    };
+  const isMinimumRequirementForClassReachedMemo = useMemo(() => {
+    const result = {};
+    Object.entries(MINIMUM_CLASS_REQUIREMENTS).forEach(
+      ([className, requirements]) => {
+        result[className] = isMinimumRequirementForClassReached(requirements);
+      }
+    );
+    return result;
   }, [attributes]);
 
   return (
@@ -79,7 +85,9 @@ function App() {
               <label>Skill:</label>
               <select name="skills" id="skill">
                 {SKILL_LIST.map((skill) => (
-                  <option value={skill.name}>{skill.name}</option>
+                  <option key={skill.name} value={skill.name}>
+                    {skill.name}
+                  </option>
                 ))}
               </select>
 
@@ -89,42 +97,8 @@ function App() {
             </div>
           </div>
 
-          {/* ------------- */}
-
           <div className="list-container">
-            <div className="attributes-section">
-              <h2>Attributes</h2>
-
-              <div>
-                {ATTRIBUTE_LIST.map((attribute) => {
-                  return (
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <p>
-                        {attribute}: {attributes[attribute.toLowerCase()].value}
-                        (Modifier:{" "}
-                        {attributes[attribute.toLowerCase()].modifier})
-                      </p>
-                      <button
-                        style={{ marginLeft: 10 }}
-                        onClick={() =>
-                          handleAttributeIncrement(attribute.toLowerCase())
-                        }
-                      >
-                        +
-                      </button>
-                      <button
-                        style={{ marginLeft: 10 }}
-                        onClick={() =>
-                          handleAttributeDecrement(attribute.toLowerCase())
-                        }
-                      >
-                        -
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <AttributeSection />
             <div className="classes-section">
               <h2>Classes</h2>
               <div style={{ display: "flex", flexDirection: "column" }}>
@@ -132,7 +106,7 @@ function App() {
                   <p
                     style={{
                       cursor: "pointer",
-                      color: isMinimunRequirementForClassReached[
+                      color: isMinimumRequirementForClassReachedMemo[
                         _class.toLowerCase()
                       ]
                         ? "red"
@@ -176,13 +150,13 @@ function App() {
             )}
             <div className="skills-section">
               <h2>Skills</h2>
-              <p>
-                Total skill points available: {attributes.intelligence.value}
-              </p>
+              <p>Total skill points available: {totalSkillsPoints}</p>
 
               {SKILL_LIST.map((skill) => (
                 <div key={skill.name}>
-                  {skill.name}: 0 (Modifier: {skill.attributeModifier}):0
+                  {skill.name}: {skills[skill.name.toLowerCase()].value}{" "}
+                  (Modifier: {skill.attributeModifier}):{" "}
+                  {attributes[skill.attributeModifier.toLowerCase()].modifier}
                   <button>+</button>
                   <button>-</button>
                   total: 0
